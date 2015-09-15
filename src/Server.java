@@ -15,8 +15,8 @@ public class Server {
 		System.out.println("Server Ativo e Pronto para Conectar!!!...");
 		
 		while(true){
-			Socket socket = serverScoket.accept();
-			new ServerThread(socket).start();
+			Socket socket = serverScoket.accept();// NOVA CONEXAO
+			new ServerThread(socket).start(); // STARTA UMA THREAD PARA CADA CONEXAO
 		}
 		
 	}
