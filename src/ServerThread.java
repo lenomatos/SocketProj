@@ -22,5 +22,4 @@ public class ServerThread extends Thread {
 			e.printStackTrace();
 		}
 	}
-}
-//aaa
+}//FIM
