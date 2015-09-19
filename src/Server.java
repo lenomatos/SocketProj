@@ -1,3 +1,4 @@
+import java.awt.List;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -11,6 +12,18 @@ public class Server {
 	
 	public static final int PORT = 7070;
 	ArrayList<Player> players = new ArrayList();
+	ArrayList<PrintWriter> writers = new ArrayList();
+	ArrayList<Socket> clients = new ArrayList();
+	
+	public void sendToAll(String msg){ // ENVIAR MSG PARA TODOS
+		for(PrintWriter w: writers){
+			try{
+				w.println(msg);
+				w.flush();
+			} catch(Exception e){}
+		}
+	}
+	
 	public static void main(String[] args) throws IOException{
 		new Server().runServer();
 	}
@@ -21,7 +34,10 @@ public class Server {
 		
 		while(true){
 			Socket socket = serverScoket.accept();// NOVA CONEXAO
+			clients.add(socket);
 			new ServerThread(socket).start(); // STARTA UMA THREAD PARA CADA CONEXAO
+			PrintWriter p = new PrintWriter(socket.getOutputStream(), true);
+			writers.add(p);
 		}
 		
 	}
@@ -29,57 +45,102 @@ public class Server {
 	public class ServerThread extends Thread {
 		
 		Socket socket;
-		Boolean nova_rodada = false;
-		Boolean rodada = false;
-		
+	
 		ServerThread(Socket socket){
 			this.socket = socket;
+			
 		}
 		
-		public void run(){// THREAD RODANDO
+	synchronized public void run(){// THREAD RODANDO
 			
 			try {
-				Player p = new Player();
+				Player p = new Player();// JOGADOR
+				int aux; // VARIAVEL AUXILIAR
 				String n = null; // PARA O NOME
 				String message = null; // STRING QUE RECEBE A MENSAGEM DO CLIENTE
 				PrintWriter printWriter = new PrintWriter(socket.getOutputStream(), true); // USADO PARA ESCREVER
 				BufferedReader buffereadReader = new BufferedReader(new InputStreamReader(socket.getInputStream()));// ENTRADA RECEBIDA DO CLIENTE
-				n = buffereadReader.readLine();
-				System.out.println("User: "+n+" conectado!!!...");// SABER QUE O CLIENTE FOI CONECTADO COM SUCESSO
 				
+				n = buffereadReader.readLine();// PEGAR O NOME DO JOGADOR
+				System.out.println("User: "+n+" conectado!!!...");// SABER QUE O CLIENTE FOI CONECTADO COM SUCESSO
+	
 				p.setName(n); // SETA O NOME DO JOGADOR
+				p.setStatus("Inocente");// TODOS INOCENTES NO INICIO DO JOGO
 				players.add(p);// ADICIONA JOGADOR A LISTA
 				
 				if(players.size()==4){ // LIMITAR O NUMERO DE JOGADORES
 					distributeRoles(); // PARA MAXIMO 4 JOGADORES
 				}
-				// INFORMA AO JOGADOR QUE FOI CONECTADO
+				
 				printWriter.println("Conectado com Sucesso!!!...");// INFORMA QUE O CLIENTE FOI CONECTADO
 				
 				// COMUNICANDO
 				while((message = buffereadReader.readLine())!=null){ // ENQUANTO ESTIVER RECEBENDO ENTRADA DO CLIENTE
 					System.out.println("Mensagem Recebida do "+p.getNome()+": "+message); // MOSTRA A MENSAGEM RECEBIDA
-					
-					/*
+					if(p.getStatus().equals("Morto")){
+						socket.close();
+					}
 					if(message.equals("Suspeitar")){
-						printWriter.println("Comando: "+message); // REPLICA A MENSAGEM
+						
+						if(p.getPapel().equals("Detetive")){
+							printWriter.println("Diginte o nome do Jogador");
+							n = buffereadReader.readLine();
+							aux = buscaPos(n);
+							
+							if(aux>=0){
+								suspect(players.get(aux));
+							}
+						}
 					}
 					if(message.equals("Acusar")){
-						printWriter.println("Comando: "+message); // REPLICA A MENSAGEM
+						
+						if(p.getPapel().equals("Detetive")){
+							printWriter.println("Diginte o nome do Jogador");
+							n = buffereadReader.readLine();
+							aux = buscaPos(n);		
+							if(aux>=0){
+								if(!players.get(aux).getStatus().equals("Suspeito")){// SO PODE ACUSAR 
+									System.out.println("PRECISA ACUSAR ALGUEM");
+									printWriter.println("PRECISA ACUSAR ALGUEM");
+								}
+								accuse(players.get(aux));
+							}
+						}
 					}
 					if(message.equals("Ameacar")){
-						printWriter.println("Comando: "+message); // REPLICA A MENSAGEM
+			
+						if(p.getPapel().equals("Assassino")){
+							printWriter.println("Diginte o nome do Jogador");
+							n = buffereadReader.readLine();
+							aux = buscaPos(n);				
+							if(aux>=0){
+								threaten(players.get(aux));
+							}
+						}
 					}
 					if(message.equals("Matar")){
-						printWriter.println("Comando: "+message); // REPLICA A MENSAGEM
+						
+						if(p.getPapel().equals("Assassino")){
+							printWriter.println("Diginte o nome do Jogador");
+							n = buffereadReader.readLine();
+							aux = buscaPos(n);
+							if(aux>=0){
+								if(!players.get(aux).getStatus().equals("Ameacado")){// SO PODE ACUSAR 
+									System.out.println("PRECISA AMEACAR ALGUEM");
+									printWriter.println("PRECISA AMEACAR ALGUEM");
+								}
+								blink(players.get(aux));
+							}
+						}
 					}
-					else{
-						printWriter.println("Recebido"); // REPLICA A MENSAGEM
-					}*/
 					
-					for(int i=0; i<players.size(); i++){
-						System.out.println("TODOS JOGADORES: "+players.get(i).getNome() +": "+players.get(i).getPapel());
+					printWriter.println("Recebido"); // REPLICA A MENSAGEM -- OPCIONAL
+					
+					System.out.println("TODOS JOGADORES: PAPEL: STATUS");// TIRAR -- USANDO COMO DEBUGGER
+					for(int i=0; i<players.size(); i++){// TIRAR -- USANDO COMO DEBUGGER
+						System.out.println(players.get(i).getNome() +": "+players.get(i).getPapel()+": "+players.get(i).getStatus());
 					}
+					System.out.println("------------------------");// TIRAR -- USANDO COMO DEBUGGER
 				}
 				socket.close(); // ENCERRA A SOCKET E THREAD
 			} catch (IOException e) {
@@ -87,13 +148,14 @@ public class Server {
 			}
 		}
 		
-		private void distributeRoles(){ // DISTRIBUI PAPEIS PARA OS JOGADORES
+		private void distributeRoles(){ // DISTRIBUI PAPEIS PARA OS JOGADORES -- OK
 			Random number = new Random();
 			int num1 = number.nextInt((4)+1); // SORTEIA POSIÇÃO 
 			int num2 = number.nextInt((4)+1); // SORTEIA POSIÇÃO
 			
 			while(num1==num2){ // UM UNICO DETETIVE E ASSASSINO
 				num2 = number.nextInt((4)+1);
+				num1 = number.nextInt((4)+1);
 			}
 			
 			players.get(num1).setRole("Detetive"); // COLOCANDO PAPEL
@@ -114,19 +176,14 @@ public class Server {
 		
 		// SOMENTE O DETETIVE CHAMA ESTE METODO EM UM PLAYER SUSPEITO
 		private void accuse(Player p){
-			System.out.println("ACUSANDO");
-
+			
 			if(p.getStatus().equals("Suspeito")){
 				if(p.getPapel().equals("Assassino")){
-					// CHAMAR VENCEDOR DETETIVE
-					System.out.println("DETETIVE GANHOU");
+					sendToAll("DETETIVE GANHOU");// CHAMAR VENCEDOR DETETIVE
 				}
 				else{
-					System.out.println("SUSPEITO INOCENTE");
+					p.setStatus("Inocente");
 				}
-			}
-			else{
-				System.out.println("PRECISA ACUSAR ALGUEM");
 			}
 
 		}// FIM DO ACUSAR
@@ -138,22 +195,23 @@ public class Server {
 		
 		//  METODO UTILIZADO PELO ASSASSINO
 		private void blink(Player p){
-			// AMEACOU O DETETIVE 
-			if((p.getStatus().equals("Ameacado"))&&(p.getPapel().equals("Detetive"))){
-				// DETETIVE GANHA
-				System.out.println("DETETIVE GANHOU");
+			
+			if((p.getStatus().equals("Ameacado"))&&(p.getPapel().equals("Detetive"))){// AMEACOU O DETETIVE 
+				System.out.println("DETETIVE GANHOU");// DETETIVE GANHA
+				sendToAll("DETETIVE GANHOU");
 			}
-			// MATANDO AMEACADO
-			else if(p.getStatus().equals("Ameacado")){
+			
+			if(p.getStatus().equals("Ameacado")){// MATANDO AMEACADO
 				p.setStatus("Morto");
-				//	INFORMAR A TODOS QUE O PLAYER MORREU
+				sendToAll("Jogador: "+p.getNome()+" foi morto!");//	INFORMAR A TODOS QUE O PLAYER MORREU
+				
 				int pos = buscaPos(p.getNome());
 				if(pos>=0){
 					players.remove(pos);
 				}
-				if(players.size()<=3){
-					// ASSASSINO VENCEDOR
+				if(players.size()<=3){// ASSASSINO VENCEDOR
 					System.out.println("ASSASSINO GANHOU");
+					sendToAll("ASSASSINO GANHOU");
 				}
 			}
 		}// FIM DO METODO MATAR
