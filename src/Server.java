@@ -13,7 +13,6 @@ public class Server {
 	public static final int PORT = 7070;
 	ArrayList<Player> players = new ArrayList();
 	ArrayList<PrintWriter> writers = new ArrayList();
-	ArrayList<Socket> clients = new ArrayList();
 	
 	public void sendToAll(String msg){ // ENVIAR MSG PARA TODOS
 		for(PrintWriter w: writers){
@@ -34,7 +33,6 @@ public class Server {
 		
 		while(true){
 			Socket socket = serverScoket.accept();// NOVA CONEXAO
-			clients.add(socket);
 			new ServerThread(socket).start(); // STARTA UMA THREAD PARA CADA CONEXAO
 			PrintWriter p = new PrintWriter(socket.getOutputStream(), true);
 			writers.add(p);
@@ -45,7 +43,7 @@ public class Server {
 	public class ServerThread extends Thread {
 		
 		Socket socket;
-	
+
 		ServerThread(Socket socket){
 			this.socket = socket;
 			
@@ -68,7 +66,7 @@ public class Server {
 				p.setStatus("Inocente");// TODOS INOCENTES NO INICIO DO JOGO
 				players.add(p);// ADICIONA JOGADOR A LISTA
 				
-				if(players.size()==4){ // LIMITAR O NUMERO DE JOGADORES
+				if((players.size())==5){ // LIMITAR O NUMERO DE JOGADORES
 					distributeRoles(); // PARA MAXIMO 4 JOGADORES
 				}
 				
@@ -134,7 +132,7 @@ public class Server {
 						}
 					}
 					
-					printWriter.println("Recebido"); // REPLICA A MENSAGEM -- OPCIONAL
+					printWriter.println("VOCE: "+p.getNome()+" -PAPEL: "+p.getPapel()+" -STATUS: "+p.getStatus()); // REPLICA A MENSAGEM -- OPCIONAL
 					
 					System.out.println("TODOS JOGADORES: PAPEL: STATUS");// TIRAR -- USANDO COMO DEBUGGER
 					for(int i=0; i<players.size(); i++){// TIRAR -- USANDO COMO DEBUGGER
@@ -150,8 +148,8 @@ public class Server {
 		
 		private void distributeRoles(){ // DISTRIBUI PAPEIS PARA OS JOGADORES -- OK
 			Random number = new Random();
-			int num1 = number.nextInt((4)+1); // SORTEIA POSI플O 
-			int num2 = number.nextInt((4)+1); // SORTEIA POSI플O
+			int num1 = number.nextInt((players.size())); // SORTEIA POSI플O 
+			int num2 = number.nextInt((players.size())); // SORTEIA POSI플O
 			
 			while(num1==num2){ // UM UNICO DETETIVE E ASSASSINO
 				num2 = number.nextInt((4)+1);
