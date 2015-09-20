@@ -44,13 +44,21 @@ public class Client  {
 			BufferedReader bufferedReaderCMD = new java.io.BufferedReader(new InputStreamReader(System.in));// ENTRADA DO CMD
 			
 			printWriter.println(name); // MANDANDO PARA O SERVER QUEM ESTÁ CONECTADO
-			System.out.println(buffereadReaderClient.readLine());/* RECEBE A REPLY DO SERVER*/
+			String x = null;
+			x = buffereadReaderClient.readLine();
+			System.out.println(x);/* RECEBE A REPLY DO SERVER*/
 			
 			
 			while(true){//  ENQUANTO A CONEXAO FOR VERDADEIRA
 				String readerInput = bufferedReaderCMD.readLine(); // RECEBE MENSAGEM DO CMD
 				printWriter.println(readerInput); // ENVIA MENSAGEM PARA O SERVER
-				System.out.println(buffereadReaderClient.readLine());/* RECEBE A REPLY DO SERVER*/
+				
+				if(x.equals("null")){
+					socket.close();
+				}
+				
+				x =	buffereadReaderClient.readLine();
+				System.out.println(x);/* RECEBE A REPLY DO SERVER*/
 			}
 			
 		}

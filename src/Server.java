@@ -13,7 +13,8 @@ public class Server {
 	public static final int PORT = 7070;
 	ArrayList<Player> players = new ArrayList();
 	ArrayList<PrintWriter> writers = new ArrayList();
-	
+	Boolean envia;
+	Boolean winner = false;
 	public void sendToAll(String msg){ // ENVIAR MSG PARA TODOS
 		for(PrintWriter w: writers){
 			try{
@@ -75,64 +76,73 @@ public class Server {
 				// COMUNICANDO
 				while((message = buffereadReader.readLine())!=null){ // ENQUANTO ESTIVER RECEBENDO ENTRADA DO CLIENTE
 					System.out.println("Mensagem Recebida do "+p.getNome()+": "+message); // MOSTRA A MENSAGEM RECEBIDA
+					envia=false;
+					if(winner==true){// ALGUEM GANHOU O JOGO
+						socket.close();
+					}
 					if(p.getStatus().equals("Morto")){
 						socket.close();
 					}
-					if(message.equals("Suspeitar")){
+					else if(message.equals("Suspeitar")){
 						
 						if(p.getPapel().equals("Detetive")){
 							printWriter.println("Diginte o nome do Jogador");
 							n = buffereadReader.readLine();
 							aux = buscaPos(n);
 							
-							if(aux>=0){
+							if(aux>-1){
 								suspect(players.get(aux));
 							}
 						}
 					}
-					if(message.equals("Acusar")){
+					else if(message.equals("Acusar")){
 						
 						if(p.getPapel().equals("Detetive")){
 							printWriter.println("Diginte o nome do Jogador");
 							n = buffereadReader.readLine();
 							aux = buscaPos(n);		
-							if(aux>=0){
-								if(!players.get(aux).getStatus().equals("Suspeito")){// SO PODE ACUSAR 
+							if(aux>-1){
+								if(!(players.get(aux).getStatus().equals("Suspeito")||players.get(aux).getStatus().equals("Ameacado&Suspeito")||players.get(aux).getStatus().equals("Suspeito&Ameacado"))){// SO PODE ACUSAR 
 									System.out.println("PRECISA ACUSAR ALGUEM");
 									printWriter.println("PRECISA ACUSAR ALGUEM");
+									envia = true;
 								}
 								accuse(players.get(aux));
 							}
 						}
 					}
-					if(message.equals("Ameacar")){
+					else if(message.equals("Ameacar")){
 			
 						if(p.getPapel().equals("Assassino")){
 							printWriter.println("Diginte o nome do Jogador");
 							n = buffereadReader.readLine();
 							aux = buscaPos(n);				
-							if(aux>=0){
+							if(aux>-1){
 								threaten(players.get(aux));
 							}
 						}
 					}
-					if(message.equals("Matar")){
+					else if(message.equals("Matar")){
 						
 						if(p.getPapel().equals("Assassino")){
 							printWriter.println("Diginte o nome do Jogador");
 							n = buffereadReader.readLine();
 							aux = buscaPos(n);
-							if(aux>=0){
-								if(!players.get(aux).getStatus().equals("Ameacado")){// SO PODE ACUSAR 
+							if(aux>-1){
+								if(!(players.get(aux).getStatus().equals("Ameacado")||players.get(aux).getStatus().equals("Ameacado&Suspeito")||players.get(aux).getStatus().equals("Suspeito&Ameacado"))){// SO PODE ACUSAR 
 									System.out.println("PRECISA AMEACAR ALGUEM");
 									printWriter.println("PRECISA AMEACAR ALGUEM");
+									envia = true;
 								}
 								blink(players.get(aux));
 							}
 						}
 					}
 					
-					printWriter.println("VOCE: "+p.getNome()+" -PAPEL: "+p.getPapel()+" -STATUS: "+p.getStatus()); // REPLICA A MENSAGEM -- OPCIONAL
+					if(envia==false){
+						printWriter.println("VOCE: "+p.getNome()+" -PAPEL: "+p.getPapel()+" -STATUS: "+p.getStatus()); // REPLICA A MENSAGEM -- OPCIONAL
+					}
+					else{envia = false;}
 					
 					System.out.println("TODOS JOGADORES: PAPEL: STATUS");// TIRAR -- USANDO COMO DEBUGGER
 					for(int i=0; i<players.size(); i++){// TIRAR -- USANDO COMO DEBUGGER
@@ -169,7 +179,12 @@ public class Server {
 		
 		// SOMENTE O DETETIVE CHAMA ESTE METODO EM UM PLAYER QUALQUER
 		private void suspect(Player p){
-			p.setStatus("Suspeito");
+			if(p.getStatus().equals("Ameacado")){
+				p.setStatus(p.getStatus()+"&Ameacado");
+			}
+			else{
+				p.setStatus("Suspeito");
+			}
 		}// FIM SUSPEITO
 		
 		// SOMENTE O DETETIVE CHAMA ESTE METODO EM UM PLAYER SUSPEITO
@@ -178,6 +193,7 @@ public class Server {
 			if(p.getStatus().equals("Suspeito")){
 				if(p.getPapel().equals("Assassino")){
 					sendToAll("DETETIVE GANHOU");// CHAMAR VENCEDOR DETETIVE
+					winner=true;
 				}
 				else{
 					p.setStatus("Inocente");
@@ -188,7 +204,12 @@ public class Server {
 		
 		// SOMENTE ASSASSINO CHAMA ESTE METODO, AMEACANDO ALGUEM
 		private void threaten(Player p){
-			p.setStatus("Ameacado");
+			if(p.getStatus().equals("Suspeito")){
+				p.setStatus(p.getStatus()+"&Ameacado");
+			}
+			else{
+				p.setStatus("Ameacado");
+			}
 		}//  FIM DO AMEACAR
 		
 		//  METODO UTILIZADO PELO ASSASSINO
@@ -197,6 +218,7 @@ public class Server {
 			if((p.getStatus().equals("Ameacado"))&&(p.getPapel().equals("Detetive"))){// AMEACOU O DETETIVE 
 				System.out.println("DETETIVE GANHOU");// DETETIVE GANHA
 				sendToAll("DETETIVE GANHOU");
+				winner=true;
 			}
 			
 			if(p.getStatus().equals("Ameacado")){// MATANDO AMEACADO
@@ -210,6 +232,7 @@ public class Server {
 				if(players.size()<=3){// ASSASSINO VENCEDOR
 					System.out.println("ASSASSINO GANHOU");
 					sendToAll("ASSASSINO GANHOU");
+					winner=true;
 				}
 			}
 		}// FIM DO METODO MATAR
